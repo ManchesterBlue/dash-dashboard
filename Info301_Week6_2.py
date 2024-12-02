@@ -3,13 +3,11 @@
 # !pip install umap
 # !pip install umap-learn
 
+import streamlit as st
 import pandas as pd
 import requests
 import json
 import plotly.express as px
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
 import numpy as np
 
 # === Data Loading ===
@@ -33,63 +31,90 @@ real_url = "https://raw.githubusercontent.com/AidaCPL/INFOSCI301_Final_Project/m
 df_fake = pd.read_csv(fake_url)
 df_real = pd.read_csv(real_url)
 
-# === Simulated SHAP Interaction Data (Replace with real SHAP interaction values if available) ===
-# Assume SHAP interaction values are computed
+# === Simulated SHAP Interaction Data ===
+# Generate a random interaction matrix for features
 features = ['Trust', 'Political_Alignment', 'Social_Media_Engagement', 'Risk_Taking']
-interaction_matrix = np.random.rand(len(features), len(features))  # Simulated interaction values
+interaction_matrix = np.random.rand(len(features), len(features))
 interaction_df = pd.DataFrame(interaction_matrix, columns=features, index=features)
 
-# === Dash App Setup ===
+# === Simulated SHAP Time-Series Data ===
+# Simulate SHAP values over a time series for features
+dates = pd.date_range(start="2023-01-01", periods=12, freq="M")  # Monthly data
+time_series_data = {
+    "Date": np.repeat(dates, len(features)),
+    "Feature": features * len(dates),
+    "SHAP Value": np.random.rand(len(dates) * len(features))
+}
+df_shap = pd.DataFrame(time_series_data)
 
-app = dash.Dash(__name__)
+# === Streamlit Application ===
 
-app.layout = html.Div([
-    html.H1("SHAP Feature Interaction Heatmap", style={"textAlign": "center"}),
+# Page title
+st.title("Explainable AI: SHAP Visualizations")
 
-    # Interactive heatmap
-    dcc.Graph(
-        id="interaction-heatmap",
-        config={"displayModeBar": True}
-    ),
-
-    # Description
-    html.Div(
-        children="This heatmap visualizes the interaction strength between different features. Higher values indicate stronger interactions.",
-        style={"textAlign": "center", "marginTop": "10px"}
-    )
-])
-
-@app.callback(
-    Output("interaction-heatmap", "figure"),
-    Input("interaction-heatmap", "id")
+# Feature Interaction Heatmap
+st.header("SHAP Feature Interaction Heatmap")
+st.markdown("This heatmap visualizes the interaction strength between different features. Higher values indicate stronger interactions.")
+fig_heatmap = px.imshow(
+    interaction_df,
+    text_auto=True,
+    color_continuous_scale="Viridis",
+    labels={"color": "Interaction Strength"}
 )
-def update_heatmap(_):
-    # Generate the interactive heatmap using Plotly
-    fig = px.imshow(
-        interaction_df,
-        text_auto=True,
-        color_continuous_scale="Viridis",
-        labels={"color": "Interaction Strength"}
-    )
-    fig.update_layout(
-        title="Feature Interaction Heatmap",
-        xaxis_title="Feature A",
-        yaxis_title="Feature B",
-        coloraxis_colorbar=dict(title="Interaction Value"),
-    )
-    return fig
+fig_heatmap.update_layout(
+    title="Feature Interaction Heatmap",
+    xaxis_title="Feature A",
+    yaxis_title="Feature B",
+    coloraxis_colorbar=dict(title="Interaction Value"),
+)
+st.plotly_chart(fig_heatmap)
 
-# Run the app
-if __name__ == "__main__":
-    app.run_server(debug=True)
+# SHAP Time-Series Visualization
+st.header("SHAP Time-Series Explanations")
+selected_features = st.multiselect(
+    "Select Features to Display:",
+    options=features,
+    default=features[:2]
+)
+selected_date_range = st.date_input(
+    "Select Date Range:",
+    value=(dates.min(), dates.max()),
+    min_value=dates.min(),
+    max_value=dates.max()
+)
 
+# Filter the time-series data based on user selection
+if selected_features:
+    filtered_df = df_shap[
+        (df_shap["Feature"].isin(selected_features)) &
+        (df_shap["Date"] >= selected_date_range[0]) &
+        (df_shap["Date"] <= selected_date_range[1])
+    ]
+
+    fig_time_series = px.line(
+        filtered_df,
+        x="Date",
+        y="SHAP Value",
+        color="Feature",
+        title="SHAP Time-Series Values",
+        markers=True
+    )
+    fig_time_series.update_traces(line=dict(width=3), marker=dict(size=8))
+    fig_time_series.update_layout(
+        xaxis_title="Date",
+        yaxis_title="SHAP Value",
+        template="plotly_white",
+        hovermode="x unified"
+    )
+    st.plotly_chart(fig_time_series)
+else:
+    st.warning("Please select at least one feature to display the time-series chart.")
+
+import streamlit as st
 import pandas as pd
 import requests
 import json
 import plotly.express as px
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
 import numpy as np
 
 # === Data Loading ===
@@ -124,79 +149,53 @@ data = {
 }
 df_shap = pd.DataFrame(data)
 
-# === Dash App Setup ===
+# === Streamlit App Setup ===
 
-app = dash.Dash(__name__)
-app.title = "Time-Series SHAP Explanations"
+# Page Title
+st.title("Time-Series SHAP Explanations")
 
-# Layout of the Dash App
-app.layout = html.Div([
-    html.H1("Time-Series SHAP Explanations", style={"textAlign": "center"}),
-
-    # Dropdown for selecting a feature
-    html.Div([
-        html.Label("Select Feature:", style={"marginTop": "20px"}),
-        dcc.Dropdown(
-            id='feature-dropdown',
-            options=[{"label": feature, "value": feature} for feature in features],
-            value=features[0],
-            clearable=False
-        )
-    ], style={"width": "50%", "margin": "auto"}),
-
-    # Interactive time-series visualization
-    dcc.Graph(
-        id="shap-time-series",
-        config={"displayModeBar": True},
-        style={"marginTop": "20px"}
-    ),
-
-    # Description
-    html.Div(
-        children="This visualization shows how SHAP values for the selected feature evolve over time. Use the dropdown to switch between features.",
-        style={"textAlign": "center", "marginTop": "10px", "fontSize": "16px"}
-    )
-])
-
-# Callback to update the time-series visualization based on the selected feature
-@app.callback(
-    Output("shap-time-series", "figure"),
-    [Input("feature-dropdown", "value")]
+# Dropdown for selecting features
+st.sidebar.header("Select Feature")
+selected_feature = st.sidebar.selectbox(
+    "Choose a Feature:",
+    options=features,
+    index=0
 )
-def update_time_series(selected_feature):
-    # Filter data for the selected feature
-    filtered_df = df_shap[df_shap["Feature"] == selected_feature]
 
-    # Generate a line plot using Plotly
-    fig = px.line(
-        filtered_df,
-        x="Date",
-        y="SHAP Value",
-        title=f"Time-Series SHAP Values for {selected_feature}",
-        markers=True
-    )
+# Filter the data for the selected feature
+filtered_df = df_shap[df_shap["Feature"] == selected_feature]
 
-    # Add additional elements for advanced visualization
-    fig.update_traces(line=dict(width=3, dash="solid"), marker=dict(size=8))
-    fig.update_layout(
-        xaxis_title="Date",
-        yaxis_title="SHAP Value",
-        template="plotly_white",
-        hovermode="x unified"
-    )
-    return fig
+# Time-Series Visualization
+st.subheader(f"SHAP Time-Series Values for {selected_feature}")
+fig = px.line(
+    filtered_df,
+    x="Date",
+    y="SHAP Value",
+    title=f"SHAP Time-Series Values for {selected_feature}",
+    markers=True
+)
+fig.update_traces(line=dict(width=3, dash="solid"), marker=dict(size=8))
+fig.update_layout(
+    xaxis_title="Date",
+    yaxis_title="SHAP Value",
+    template="plotly_white",
+    hovermode="x unified"
+)
+st.plotly_chart(fig)
 
-# Run the Dash app
-if __name__ == "__main__":
-    app.run_server(debug=True)
+# Description
+st.markdown(
+    """
+    This visualization shows how SHAP values for the selected feature evolve over time.
+    Use the dropdown in the sidebar to switch between features.
+    """
+)
 
+import streamlit as st
 import pandas as pd
 import requests
 import json
 import plotly.express as px
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
 import numpy as np
 
 # === Data Loading ===
@@ -231,68 +230,39 @@ data = {
 }
 df_shap = pd.DataFrame(data)
 
-# === Dash App Setup ===
-app = dash.Dash(__name__)
-app.title = "Enhanced Time-Series SHAP Explanations"
+# === Streamlit App ===
 
-# Layout of the Dash App
-app.layout = html.Div([
-    html.H1("Enhanced Time-Series SHAP Explanations", style={"textAlign": "center"}),
+# Page title
+st.title("Enhanced Time-Series SHAP Explanations")
 
-    # Feature multi-select
-    html.Div([
-        html.Label("Select Features:", style={"marginTop": "20px"}),
-        dcc.Dropdown(
-            id='feature-dropdown',
-            options=[{"label": feature, "value": feature} for feature in features],
-            value=features[:2],  # Default to the first two features
-            multi=True,  # Allow multiple selections
-            clearable=True
-        )
-    ], style={"width": "60%", "margin": "auto"}),
+# Sidebar for selecting features and date range
+st.sidebar.header("Filter Options")
 
-    # Date range picker
-    html.Div([
-        html.Label("Select Date Range:", style={"marginTop": "20px"}),
-        dcc.DatePickerRange(
-            id='date-picker',
-            start_date=str(dates.min()),
-            end_date=str(dates.max()),
-            display_format="YYYY-MM-DD",
-            style={"margin": "auto"}
-        )
-    ], style={"width": "60%", "margin": "auto", "textAlign": "center"}),
-
-    # Interactive time-series visualization
-    dcc.Graph(
-        id="shap-time-series",
-        config={"displayModeBar": True},
-        style={"marginTop": "20px"}
-    ),
-
-    # Description
-    html.Div(
-        children="This enhanced visualization allows you to select multiple features and a custom date range to analyze SHAP values over time.",
-        style={"textAlign": "center", "marginTop": "10px", "fontSize": "16px"}
-    )
-])
-
-# Callback to update the time-series visualization based on the selected features and date range
-@app.callback(
-    Output("shap-time-series", "figure"),
-    [Input("feature-dropdown", "value"),
-     Input("date-picker", "start_date"),
-     Input("date-picker", "end_date")]
+# Feature multi-select
+selected_features = st.sidebar.multiselect(
+    "Select Features:",
+    options=features,
+    default=features[:2]  # Default to the first two features
 )
-def update_time_series(selected_features, start_date, end_date):
-    # Filter data for the selected features and date range
-    filtered_df = df_shap[
-        (df_shap["Feature"].isin(selected_features)) &
-        (df_shap["Date"] >= start_date) &
-        (df_shap["Date"] <= end_date)
-    ]
 
-    # Generate a line plot using Plotly
+# Date range picker
+start_date, end_date = st.sidebar.date_input(
+    "Select Date Range:",
+    value=[dates.min(), dates.max()],
+    min_value=dates.min(),
+    max_value=dates.max()
+)
+
+# Filter the data based on selected features and date range
+filtered_df = df_shap[
+    (df_shap["Feature"].isin(selected_features)) &
+    (df_shap["Date"] >= str(start_date)) &
+    (df_shap["Date"] <= str(end_date))
+]
+
+# Interactive time-series visualization
+if not filtered_df.empty:
+    st.subheader("Time-Series SHAP Values")
     fig = px.line(
         filtered_df,
         x="Date",
@@ -301,8 +271,6 @@ def update_time_series(selected_features, start_date, end_date):
         title="Time-Series SHAP Values",
         markers=True
     )
-
-    # Add additional elements for advanced visualization
     fig.update_traces(line=dict(width=2), marker=dict(size=6))
     fig.update_layout(
         xaxis_title="Date",
@@ -310,20 +278,22 @@ def update_time_series(selected_features, start_date, end_date):
         template="plotly_white",
         hovermode="x unified"
     )
-    return fig
+    st.plotly_chart(fig)
+else:
+    st.warning("No data available for the selected features and date range.")
 
-# Run the Dash app
-if __name__ == "__main__":
-    app.run_server(debug=True)
+# Description
+st.markdown(
+    """
+    This enhanced visualization allows you to select multiple features and a custom date range to analyze SHAP values over time.
+    Use the sidebar to filter by features and adjust the time range.
+    """
+)
 
+import streamlit as st
 import pandas as pd
-import requests
-import json
-import plotly.express as px
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
 import numpy as np
+import plotly.express as px
 
 # === Simulated SHAP Time-Series Data ===
 # Simulate daily SHAP values for multiple features over two years
@@ -336,83 +306,39 @@ data = {
 }
 df_shap = pd.DataFrame(data)
 
-# === Dash App Setup ===
-app = dash.Dash(__name__)
-app.title = "Advanced Explainable AI Time-Series"
+# === Streamlit App Setup ===
 
-# Layout of the Dash App
-app.layout = html.Div([
-    html.H1("Explainable AI - Advanced Time-Series SHAP Visualizations", style={"textAlign": "center"}),
+# Page title
+st.title("Advanced Explainable AI Time-Series")
 
-    # Feature multi-select
-    html.Div([
-        html.Label("Select Features:", style={"marginTop": "20px"}),
-        dcc.Dropdown(
-            id='feature-dropdown',
-            options=[{"label": feature, "value": feature} for feature in features],
-            value=features[:3],  # Default to the first three features
-            multi=True,  # Allow multiple selections
-            clearable=True
-        )
-    ], style={"width": "60%", "margin": "auto"}),
+# Sidebar inputs for filtering
+st.sidebar.header("Filter Options")
 
-    # Date range picker
-    html.Div([
-        html.Label("Select Date Range:", style={"marginTop": "20px"}),
-        dcc.DatePickerRange(
-            id='date-picker',
-            start_date=str(dates.min()),
-            end_date=str(dates.max()),
-            display_format="YYYY-MM-DD",
-            style={"margin": "auto"}
-        )
-    ], style={"width": "60%", "margin": "auto", "textAlign": "center"}),
-
-    # SHAP Time-Series Line Plot
-    dcc.Graph(
-        id="shap-time-series",
-        config={"displayModeBar": True},
-        style={"marginTop": "20px"}
-    ),
-
-    # SHAP Feature Importance Bar Chart
-    dcc.Graph(
-        id="shap-feature-importance",
-        config={"displayModeBar": False},
-        style={"marginTop": "20px"}
-    ),
-
-    # Feature statistics table
-    html.Div([
-        html.H3("Feature Statistics Summary", style={"textAlign": "center", "marginTop": "20px"}),
-        html.Table(id="feature-stats-table", style={"margin": "auto", "width": "80%", "border": "1px solid black"})
-    ]),
-
-    # Description
-    html.Div(
-        children="Explore SHAP time-series explanations with dynamic feature selection, date filtering, and feature statistics.",
-        style={"textAlign": "center", "marginTop": "10px", "fontSize": "16px"}
-    )
-])
-
-# Callback to update the time-series line plot, feature importance bar chart, and statistics table
-@app.callback(
-    [Output("shap-time-series", "figure"),
-     Output("shap-feature-importance", "figure"),
-     Output("feature-stats-table", "children")],
-    [Input("feature-dropdown", "value"),
-     Input("date-picker", "start_date"),
-     Input("date-picker", "end_date")]
+# Feature multi-select
+selected_features = st.sidebar.multiselect(
+    "Select Features:",
+    options=features,
+    default=features[:3]  # Default to the first three features
 )
-def update_visualizations(selected_features, start_date, end_date):
-    # Filter data for the selected features and date range
-    filtered_df = df_shap[
-        (df_shap["Feature"].isin(selected_features)) &
-        (df_shap["Date"] >= start_date) &
-        (df_shap["Date"] <= end_date)
-    ]
 
-    # === SHAP Time-Series Line Plot ===
+# Date range picker
+start_date, end_date = st.sidebar.date_input(
+    "Select Date Range:",
+    value=(dates.min(), dates.max()),
+    min_value=dates.min(),
+    max_value=dates.max()
+)
+
+# Filter the data based on the selected features and date range
+filtered_df = df_shap[
+    (df_shap["Feature"].isin(selected_features)) &
+    (df_shap["Date"] >= str(start_date)) &
+    (df_shap["Date"] <= str(end_date))
+]
+
+# === SHAP Time-Series Line Plot ===
+st.subheader("Time-Series SHAP Values")
+if not filtered_df.empty:
     line_fig = px.line(
         filtered_df,
         x="Date",
@@ -428,9 +354,13 @@ def update_visualizations(selected_features, start_date, end_date):
         template="plotly_white",
         hovermode="x unified"
     )
+    st.plotly_chart(line_fig)
+else:
+    st.warning("No data available for the selected features and date range.")
 
-    # === SHAP Feature Importance Bar Chart ===
-    # Aggregate SHAP values by feature for the selected date range
+# === SHAP Feature Importance Bar Chart ===
+st.subheader("Feature Importance (Average SHAP Values)")
+if not filtered_df.empty:
     feature_importance = filtered_df.groupby("Feature")["SHAP Value"].mean().reset_index()
     bar_fig = px.bar(
         feature_importance,
@@ -447,31 +377,30 @@ def update_visualizations(selected_features, start_date, end_date):
         template="plotly_white"
     )
     bar_fig.update_traces(texttemplate='%{text:.2f}', textposition='inside')
+    st.plotly_chart(bar_fig)
+else:
+    st.warning("No data available for feature importance.")
 
-    # === Feature Statistics Table ===
-    stats_table = []
-    if not filtered_df.empty:
-        stats = filtered_df.groupby("Feature")["SHAP Value"].agg(["min", "max", "mean", "std"]).reset_index()
-        # Table header
-        stats_table.append(html.Tr([html.Th(col) for col in stats.columns]))
-        # Table rows
-        for i in range(len(stats)):
-            stats_table.append(html.Tr([html.Td(stats.iloc[i, col]) for col in range(len(stats.columns))]))
-    else:
-        stats_table.append(html.Tr([html.Td("No data available for selected range or features.")]))
+# === Feature Statistics Table ===
+st.subheader("Feature Statistics Summary")
+if not filtered_df.empty:
+    stats = filtered_df.groupby("Feature")["SHAP Value"].agg(["min", "max", "mean", "std"]).reset_index()
+    st.dataframe(stats)
+else:
+    st.warning("No data available for feature statistics.")
 
-    return line_fig, bar_fig, stats_table
-
-# Run the Dash app
-if __name__ == "__main__":
-    app.run_server(debug=True)
+# Page footer description
+st.markdown(
+    """
+    This enhanced visualization allows you to explore SHAP values over time with dynamic feature selection, date range filtering,
+    and additional insights through feature importance and statistics.
+    """
+)
 
 import pandas as pd
 import networkx as nx
 import plotly.graph_objects as go
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
+import streamlit as st
 
 # === Extended Causal Data ===
 nodes = [
@@ -496,59 +425,28 @@ edges = [
     {"source": "CTR (Click-Through Rate)", "target": "Recommendation Algorithm", "weight": 0.5},
 ]
 
-# === Dash App Setup ===
-app = dash.Dash(__name__)
-app.title = "Advanced Interactive Recommendation Graph"
+# === Streamlit App Setup ===
 
-# App layout
-app.layout = html.Div([
-    html.H1("Enhanced Recommendation System Graph", style={"textAlign": "center"}),
+st.title("Enhanced Recommendation System Graph")
 
-    # Layer selection
-    html.Div([
-        html.Label("Select Layers to Display:", style={"marginTop": "20px"}),
-        dcc.Checklist(
-            id="layer-checklist",
-            options=[
-                {"label": "User Features", "value": "User Features"},
-                {"label": "Interaction", "value": "Interaction"},
-                {"label": "System", "value": "System"},
-                {"label": "Output", "value": "Output"},
-            ],
-            value=["User Features", "Interaction", "System", "Output"],
-            inline=True
-        )
-    ], style={"textAlign": "center", "marginBottom": "20px"}),
-
-    # Slider to filter edge weights
-    html.Div([
-        html.Label("Adjust Causal Effect Threshold (Edge Weight):", style={"marginTop": "20px"}),
-        dcc.Slider(
-            id="weight-slider",
-            min=0,
-            max=1,
-            step=0.1,
-            value=0.5,
-            marks={i / 10: f"{i / 10:.1f}" for i in range(0, 11)},
-            tooltip={"placement": "bottom", "always_visible": True}
-        )
-    ], style={"width": "60%", "margin": "auto"}),
-
-    # Graph visualization
-    dcc.Graph(id="causal-graph", config={"displayModeBar": False}, style={"marginTop": "30px"}),
-
-    # Explanation Section
-    html.Div(id="explanation-section", style={"textAlign": "center", "marginTop": "20px", "fontSize": "16px"})
-])
-
-# Callback to update the graph and explanation
-@app.callback(
-    [Output("causal-graph", "figure"),
-     Output("explanation-section", "children")],
-    [Input("weight-slider", "value"),
-     Input("layer-checklist", "value")]
+# Sidebar inputs for layer selection and edge weight threshold
+st.sidebar.header("Filter Options")
+visible_layers = st.sidebar.multiselect(
+    "Select Layers to Display:",
+    options=["User Features", "Interaction", "System", "Output"],
+    default=["User Features", "Interaction", "System", "Output"]
 )
-def update_graph(weight_threshold, visible_layers):
+
+weight_threshold = st.sidebar.slider(
+    "Adjust Causal Effect Threshold (Edge Weight):",
+    min_value=0.0,
+    max_value=1.0,
+    value=0.5,
+    step=0.1
+)
+
+# Graph generation logic
+def generate_graph(visible_layers, weight_threshold):
     try:
         # Create a directed graph
         G = nx.DiGraph()
@@ -590,7 +488,6 @@ def update_graph(weight_threshold, visible_layers):
                 hoverinfo="text",
                 mode="lines",
                 text=f"{edge[0]} → {edge[1]}<br>Weight: {edge[2]['weight']:.2f}",
-                name=f"{edge[0]} → {edge[1]}"  # Add meaningful legend names
             )
             edge_traces.append(edge_trace)
 
@@ -637,16 +534,19 @@ def update_graph(weight_threshold, visible_layers):
         explanation = f"An error occurred: {e}. Please try again."
         return fig, explanation
 
-if __name__ == "__main__":
-    app.run_server(debug=True)
+
+# Generate and display the graph
+fig, explanation = generate_graph(visible_layers, weight_threshold)
+st.plotly_chart(fig)
+
+# Display explanation
+st.markdown(f"### Explanation\n{explanation}")
 
 import pandas as pd
 import requests
 import json
 import plotly.express as px
-import dash
-from dash import dcc, html
-from dash.dependencies import Input, Output
+import streamlit as st
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 import umap
@@ -691,96 +591,68 @@ df_embeddings["label"] = claim_labels
 df_embeddings["claim"] = claims
 df_embeddings["importance"] = [len(claim) % 10 + 1 for claim in claims]  # Simulated feature for importance
 
-# === Dash App Setup ===
-app = dash.Dash(__name__)
-app.title = "Enhanced Dynamic Topic Tracking"
+# === Streamlit App Setup ===
 
-# App layout
-app.layout = html.Div([
-    html.H1("Enhanced Dynamic Topic Tracking with Word Embedding Clustering", style={"textAlign": "center"}),
+st.title("Enhanced Dynamic Topic Tracking with Word Embedding Clustering")
 
-    # Dropdown for selecting cluster or label filter
-    html.Div([
-        html.Label("Filter by Cluster or Label:", style={"marginTop": "20px"}),
-        dcc.Dropdown(
-            id="filter-dropdown",
-            options=[
-                {"label": "All Clusters", "value": "all"},
-                {"label": "Cluster 0", "value": "cluster_0"},
-                {"label": "Cluster 1", "value": "cluster_1"},
-                {"label": "Cluster 2", "value": "cluster_2"},
-                {"label": "Cluster 3", "value": "cluster_3"},
-                {"label": "Cluster 4", "value": "cluster_4"},
-                {"label": "Label: True", "value": "true"},
-                {"label": "Label: False", "value": "false"},
-                {"label": "Label: Mixture", "value": "mixture"},
-            ],
-            value="all",
-            clearable=False
-        )
-    ], style={"width": "60%", "margin": "auto"}),
-
-    # Slider to adjust point size
-    html.Div([
-        html.Label("Adjust Point Size:", style={"marginTop": "20px"}),
-        dcc.Slider(
-            id="size-slider",
-            min=5,
-            max=50,
-            step=1,
-            value=15,
-            marks={i: str(i) for i in range(5, 51, 5)},
-        )
-    ], style={"width": "60%", "margin": "auto"}),
-
-    # Visualization
-    dcc.Graph(id="embedding-visualization", style={"marginTop": "30px"}),
-
-    # Explanation Section
-    html.Div(id="explanation-section", style={"textAlign": "center", "marginTop": "20px", "fontSize": "16px"})
-])
-
-# Callback to update the embedding visualization and explanation dynamically
-@app.callback(
-    [Output("embedding-visualization", "figure"),
-     Output("explanation-section", "children")],
-    [Input("filter-dropdown", "value"),
-     Input("size-slider", "value")]
+# Sidebar inputs for cluster/label filter and point size
+filter_value = st.sidebar.selectbox(
+    "Filter by Cluster or Label:",
+    options=[
+        "All Clusters",
+        "Cluster 0",
+        "Cluster 1",
+        "Cluster 2",
+        "Cluster 3",
+        "Cluster 4",
+        "Label: True",
+        "Label: False",
+        "Label: Mixture",
+    ],
+    index=0,
 )
-def update_visualization(filter_value, point_size):
-    # Filter data based on selection
-    if filter_value == "all":
-        filtered_data = df_embeddings
-        title = "All Clusters and Labels"
-    elif filter_value.startswith("cluster"):
-        cluster_number = int(filter_value.split("_")[1])
-        filtered_data = df_embeddings[df_embeddings["cluster"] == cluster_number]
-        title = f"Cluster {cluster_number}"
-    else:
-        filtered_data = df_embeddings[df_embeddings["label"] == filter_value]
-        title = f"Label: {filter_value.capitalize()}"
 
-    # Create scatter plot with dynamic size and color gradient
-    fig = px.scatter(
-        filtered_data,
-        x="x",
-        y="y",
-        size="importance",
-        color="cluster",
-        hover_data={"claim": True, "label": True, "x": False, "y": False},
-        title=title,
-        labels={"cluster": "Cluster"},
-        size_max=point_size
-    )
+point_size = st.sidebar.slider(
+    "Adjust Point Size:",
+    min_value=5,
+    max_value=50,
+    value=15,
+    step=1,
+)
 
-    # Explanation
-    explanation = (
-        f"Displaying {title} with point size adjusted to {point_size}. "
-        "Hover over points to see individual claims, labels, and cluster information."
-    )
+# Filter data based on selection
+if filter_value == "All Clusters":
+    filtered_data = df_embeddings
+    title = "All Clusters and Labels"
+elif filter_value.startswith("Cluster"):
+    cluster_number = int(filter_value.split(" ")[1])
+    filtered_data = df_embeddings[df_embeddings["cluster"] == cluster_number]
+    title = f"Cluster {cluster_number}"
+else:
+    label = filter_value.split(": ")[1].lower()
+    filtered_data = df_embeddings[df_embeddings["label"] == label]
+    title = f"Label: {label.capitalize()}"
 
-    return fig, explanation
+# Create scatter plot with dynamic size and color gradient
+fig = px.scatter(
+    filtered_data,
+    x="x",
+    y="y",
+    size="importance",
+    color="cluster",
+    hover_data={"claim": True, "label": True, "x": False, "y": False},
+    title=title,
+    labels={"cluster": "Cluster"},
+    size_max=point_size,
+)
 
+# Display visualization and explanation
+st.plotly_chart(fig)
 
-if __name__ == "__main__":
-    app.run_server(debug=True)
+st.markdown(
+    f"""
+    ### Explanation
+    Displaying **{title}** with point size adjusted to **{point_size}**.  
+    Hover over points to see individual claims, labels, and cluster information.
+    """
+)
