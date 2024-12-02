@@ -149,21 +149,38 @@ data = {
 }
 df_shap = pd.DataFrame(data)
 
+# Ensure "Date" column is in datetime format
+df_shap["Date"] = pd.to_datetime(df_shap["Date"])
+
 # === Streamlit App Setup ===
 
 # Page Title
 st.title("Time-Series SHAP Explanations")
 
-# Dropdown for selecting features
-st.sidebar.header("Select Feature")
+# Sidebar for selecting features
+st.sidebar.header("Filter Options")
+
+# Dropdown for selecting a feature
 selected_feature = st.sidebar.selectbox(
-    "Choose a Feature:",
+    "Select a Feature:",
     options=features,
     index=0
 )
 
-# Filter the data for the selected feature
-filtered_df = df_shap[df_shap["Feature"] == selected_feature]
+# Date range picker
+selected_date_range = st.sidebar.date_input(
+    "Select Date Range:",
+    value=[df_shap["Date"].min(), df_shap["Date"].max()],
+    min_value=df_shap["Date"].min(),
+    max_value=df_shap["Date"].max()
+)
+
+# Filter the data for the selected feature and date range
+filtered_df = df_shap[
+    (df_shap["Feature"] == selected_feature) &
+    (df_shap["Date"] >= pd.to_datetime(selected_date_range[0])) &
+    (df_shap["Date"] <= pd.to_datetime(selected_date_range[1]))
+]
 
 # Time-Series Visualization
 st.subheader(f"SHAP Time-Series Values for {selected_feature}")
@@ -187,7 +204,7 @@ st.plotly_chart(fig)
 st.markdown(
     """
     This visualization shows how SHAP values for the selected feature evolve over time.
-    Use the dropdown in the sidebar to switch between features.
+    Use the dropdown in the sidebar to switch between features and adjust the date range filter.
     """
 )
 
