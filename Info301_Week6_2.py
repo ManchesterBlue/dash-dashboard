@@ -175,11 +175,15 @@ selected_date_range = st.sidebar.date_input(
     max_value=df_shap["Date"].max()
 )
 
+# Ensure selected_date_range values are converted to datetime
+start_date = pd.to_datetime(selected_date_range[0])
+end_date = pd.to_datetime(selected_date_range[1])
+
 # Filter the data for the selected feature and date range
 filtered_df = df_shap[
     (df_shap["Feature"] == selected_feature) &
-    (df_shap["Date"] >= pd.to_datetime(selected_date_range[0])) &
-    (df_shap["Date"] <= pd.to_datetime(selected_date_range[1]))
+    (df_shap["Date"] >= start_date) &
+    (df_shap["Date"] <= end_date)
 ]
 
 # Time-Series Visualization
