@@ -1,7 +1,7 @@
-!pip install dash
-!pip install dash --upgrade
-!pip install umap
-!pip install umap-learn
+# !pip install dash
+# !pip install dash --upgrade
+# !pip install umap
+# !pip install umap-learn
 
 import pandas as pd
 import requests
