@@ -140,7 +140,7 @@ df_real = pd.read_csv(real_url)
 
 # === Simulated SHAP Time-Series Data ===
 # Simulate time-series SHAP values for different features
-dates = pd.date_range(start="2023-01-01", periods=12, freq="M")  # Monthly data
+dates = pd.date_range(start="2023-01-01", periods=12, freq="ME")  # Monthly data
 features = ['Trust', 'Political_Alignment', 'Social_Media_Engagement', 'Risk_Taking']
 data = {
     "Date": np.repeat(dates, len(features)),
